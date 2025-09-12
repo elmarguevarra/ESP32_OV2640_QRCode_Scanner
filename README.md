@@ -1,49 +1,96 @@
 # ESP32-S3 OV2640 Camera Stream Project
 
-This project implements a WiFi-enabled camera streaming server using the ESP32-S3 microcontroller and an OV2640 camera module.
+This project implements a WiFi-enabled camera streaming server using the ESP32-S3 microcontroller and an OV2640 camera module. **Specifically optimized for ESP32-S3 WROOM with CH343 USB-to-serial converter.**
 
 ## Features
 
-- **Live video streaming** over WiFi
+- **Live video streaming** over WiFi with MJPEG format
 - **Web interface** for easy viewing
-- **PSRAM support** for better performance
+- **8MB PSRAM support** for high-resolution streaming
 - **Robust error handling** and connection monitoring
-- **Configurable camera settings**
+- **Configurable camera settings** with automatic optimization
 - **Real-time diagnostics** via serial output
+- **ESP32-S3 WROOM optimized** WiFi and PSRAM configuration
+- **CH343 USB-serial support** with high-speed uploads
 
 ## Hardware Requirements
 
-- ESP32-S3 Development Board (with PSRAM recommended)
-- OV2640 Camera Module
+- **ESP32-S3 WROOM** Development Board with 8MB PSRAM
+- **OV2640 Camera Module** (or compatible)
+- **CH343 USB-to-serial converter** (or compatible)
 - Proper wiring connections (see pin configuration below)
+
+### Verified Hardware
+- ✅ ESP32-S3 WROOM with 8MB embedded PSRAM
+- ✅ CH343 USB-to-serial chip
+- ✅ OV2640 camera sensor
 
 ## Pin Configuration
 
-The current pin configuration in `src/camera_pins.h` is set for a common ESP32-S3 camera module setup:
+### ESP32-S3 WROOM Standard Pin Mapping
+
+The current pin configuration in `src/camera_pins.h` is optimized for **ESP32-S3 WROOM** development boards:
 
 ```cpp
-// Camera pins for ESP32-S3
-#define XCLK_GPIO_NUM    10  // Master Clock
-#define SIOD_GPIO_NUM    40  // I2C Data
-#define SIOC_GPIO_NUM    39  // I2C Clock
+// Camera pin configuration for ESP32-S3 WROOM with OV2640
+// Standard pin mapping for ESP32-S3 WROOM development boards
+#define PWDN_GPIO_NUM    -1  // Power down not used
+#define RESET_GPIO_NUM   -1  // Reset not used
+#define XCLK_GPIO_NUM    15  // XCLK (Master Clock)
+#define SIOD_GPIO_NUM    4   // SDA (I2C Data)
+#define SIOC_GPIO_NUM    5   // SCL (I2C Clock)
 
-// Data pins (D0-D7)
+// Data pins (D0-D7) - ESP32-S3 WROOM standard mapping
 #define Y2_GPIO_NUM      11  // D0
 #define Y3_GPIO_NUM      9   // D1
 #define Y4_GPIO_NUM      8   // D2
-#define Y5_GPIO_NUM      7   // D3
-#define Y6_GPIO_NUM      6   // D4
-#define Y7_GPIO_NUM      5   // D5
-#define Y8_GPIO_NUM      4   // D6
-#define Y9_GPIO_NUM      3   // D7
+#define Y5_GPIO_NUM      10  // D3
+#define Y6_GPIO_NUM      12  // D4
+#define Y7_GPIO_NUM      18  // D5
+#define Y8_GPIO_NUM      17  // D6
+#define Y9_GPIO_NUM      16  // D7
 
-// Control pins
-#define VSYNC_GPIO_NUM   2   // VSYNC
-#define HREF_GPIO_NUM    42  // HREF
-#define PCLK_GPIO_NUM    1   // Pixel Clock
+// Control pins - ESP32-S3 WROOM standard
+#define VSYNC_GPIO_NUM   6   // VSYNC
+#define HREF_GPIO_NUM    7   // HREF
+#define PCLK_GPIO_NUM    13  // PCLK (Pixel Clock)
 ```
 
-**⚠️ Important:** Adjust these pins according to your specific hardware wiring!
+**⚠️ Important:** These pins are configured for standard ESP32-S3 WROOM boards. Adjust according to your specific camera module wiring if different.
+
+## CRITICAL: Board Configuration for PSRAM
+
+### Why Board Configuration Matters
+
+Your ESP32-S3 WROOM has **8MB embedded PSRAM**, but PlatformIO board definitions vary:
+
+| Board Definition | PSRAM Support | Recommended |
+|------------------|---------------|-------------|
+| `esp32-s3-devkitc-1` | ❌ No PSRAM | ❌ Wrong for your hardware |
+| `freenove_esp32_s3_wroom` | ✅ 8MB PSRAM | ✅ **Use this one** |
+| `rymcu-esp32-s3-devkitc-1` | ⚠️ 2MB PSRAM | ⚠️ Partial support |
+
+### Verify Your Configuration
+
+Your `platformio.ini` should use:
+```ini
+[env:esp32-s3-devkitc-1]
+platform = espressif32
+board = freenove_esp32_s3_wroom  ; Matches ESP32-S3 WROOM with 8MB PSRAM
+framework = arduino
+```
+
+**Without correct board configuration:**
+- ❌ PSRAM not detected by software
+- ❌ Limited to VGA resolution (640x480)
+- ❌ Single frame buffer (choppy streaming)
+- ❌ Poor camera performance
+
+**With correct board configuration:**
+- ✅ Full 8MB PSRAM available
+- ✅ SVGA resolution (800x600) or higher
+- ✅ Multiple frame buffers (smooth streaming)
+- ✅ Optimal camera performance
 
 ## Setup Instructions
 

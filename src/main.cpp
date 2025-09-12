@@ -1,7 +1,6 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include "camera_pins.h"
-#include "app_httpd.h"
 #include "esp_log.h"
 
 static const char* TAG = "camera_main";
