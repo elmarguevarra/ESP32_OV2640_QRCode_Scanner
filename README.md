@@ -21,6 +21,7 @@ This project implements a WiFi-enabled camera streaming server using the ESP32-S
 - Proper wiring connections (see pin configuration below)
 
 ### Verified Hardware
+
 - ✅ ESP32-S3 WROOM with 8MB embedded PSRAM
 - ✅ CH343 USB-to-serial chip
 - ✅ OV2640 camera sensor
@@ -64,15 +65,16 @@ The current pin configuration in `src/camera_pins.h` is optimized for **ESP32-S3
 
 Your ESP32-S3 WROOM has **8MB embedded PSRAM**, but PlatformIO board definitions vary:
 
-| Board Definition | PSRAM Support | Recommended |
-|------------------|---------------|-------------|
-| `esp32-s3-devkitc-1` | ❌ No PSRAM | ❌ Wrong for your hardware |
-| `freenove_esp32_s3_wroom` | ✅ 8MB PSRAM | ✅ **Use this one** |
-| `rymcu-esp32-s3-devkitc-1` | ⚠️ 2MB PSRAM | ⚠️ Partial support |
+| Board Definition           | PSRAM Support | Recommended                |
+| -------------------------- | ------------- | -------------------------- |
+| `esp32-s3-devkitc-1`       | ❌ No PSRAM   | ❌ Wrong for your hardware |
+| `freenove_esp32_s3_wroom`  | ✅ 8MB PSRAM  | ✅ **Use this one**        |
+| `rymcu-esp32-s3-devkitc-1` | ⚠️ 2MB PSRAM  | ⚠️ Partial support         |
 
 ### Verify Your Configuration
 
 Your `platformio.ini` should use:
+
 ```ini
 [env:esp32-s3-devkitc-1]
 platform = espressif32
@@ -81,12 +83,14 @@ framework = arduino
 ```
 
 **Without correct board configuration:**
+
 - ❌ PSRAM not detected by software
 - ❌ Limited to VGA resolution (640x480)
 - ❌ Single frame buffer (choppy streaming)
 - ❌ Poor camera performance
 
 **With correct board configuration:**
+
 - ✅ Full 8MB PSRAM available
 - ✅ SVGA resolution (800x600) or higher
 - ✅ Multiple frame buffers (smooth streaming)
@@ -146,34 +150,38 @@ In `src/main.cpp`, you can adjust:
 ### PSRAM Configuration
 
 The project automatically detects PSRAM and configures accordingly:
+
 - **With PSRAM**: Higher resolution (SVGA), multiple buffers
 - **Without PSRAM**: Lower resolution (VGA), single buffer
 
 ## Troubleshooting
 
 ### Camera Not Detected
+
 - Verify pin connections match your hardware
 - Check power supply (3.3V for camera module)
 - Ensure I2C pullup resistors are present
 
 ### WiFi Connection Issues
+
 - Double-check WiFi credentials
 - Ensure 2.4GHz network (ESP32 doesn't support 5GHz)
 - Check signal strength
 
 ### Streaming Issues
+
 - Verify camera initialization in serial monitor
 - Try reducing frame size or quality
 - Check browser compatibility (Chrome/Firefox recommended)
 
 ### Common Error Messages
 
-| Error | Solution |
-|-------|----------|
-| `Camera init failed` | Check wiring and pin configuration |
-| `Camera capture failed` | Verify power supply and connections |
-| `WiFi connection failed` | Check credentials and network availability |
-| `No PSRAM found` | Normal for boards without PSRAM (reduces performance) |
+| Error                    | Solution                                              |
+| ------------------------ | ----------------------------------------------------- |
+| `Camera init failed`     | Check wiring and pin configuration                    |
+| `Camera capture failed`  | Verify power supply and connections                   |
+| `WiFi connection failed` | Check credentials and network availability            |
+| `No PSRAM found`         | Normal for boards without PSRAM (reduces performance) |
 
 ## Development
 
@@ -183,7 +191,6 @@ The project automatically detects PSRAM and configures accordingly:
 ├── src/
 │   ├── main.cpp           # Main application logic
 │   ├── app_httpd.cpp      # HTTP server implementation
-│   ├── app_httpd.h        # HTTP server header
 │   └── camera_pins.h      # Pin configuration
 ├── platformio.ini         # PlatformIO configuration
 └── README.md             # This file
@@ -210,6 +217,7 @@ This project is open source. Feel free to modify and distribute according to you
 ## Support
 
 For issues and questions:
+
 1. Check the troubleshooting section
 2. Review serial monitor output for error messages
 3. Verify hardware connections match pin configuration
