@@ -2,6 +2,8 @@
 #include <WiFi.h>
 #include "camera_pins.h"
 #include "esp_log.h"
+#include "lcd.h"
+
 
 #ifndef WIFI_SSID
   #define WIFI_SSID "default_ssid"
@@ -24,6 +26,9 @@ bool testBasicCameraInit();
 
 void setup() {
   Serial.begin(115200);
+
+  lcdInit();
+
   delay(2000); // Give time for serial monitor to connect
   
   Serial.println();
@@ -71,6 +76,7 @@ void setup() {
       WiFi.setTxPower(WIFI_POWER_19_5dBm); // Max power for better connection
       
       Serial.print("Connecting");
+      lcdScroll("Connecting to WiFi");
       int attempts = 0;
       while (WiFi.status() != WL_CONNECTED && attempts < 20) {
         delay(1000);
@@ -94,6 +100,8 @@ void setup() {
         Serial.println("==================================================");
         Serial.println("System is running! Check the URLs above.");
         Serial.println("==================================================");
+        lcdPrint("System is running!");
+        lcdPrint(WiFi.localIP().toString().c_str(), 1, false);
       } else {
         Serial.println("\n✗ WiFi connection failed!");
         Serial.println("Please check:");
