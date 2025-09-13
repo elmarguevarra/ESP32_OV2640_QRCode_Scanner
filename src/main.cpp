@@ -1,6 +1,7 @@
 #include <ESP32QRCodeReader.h>
 #include <Arduino.h>
 #include <camera_pins.h>
+#include <lcd.h>
 
 // Define the correct pinout for the Freenove ESP32-S3 WROOM board
 const CameraPins camPins = {
@@ -38,6 +39,7 @@ void onQrCodeTask(void *pvParameters)
       {
         Serial.print("Payload: ");
         Serial.println((const char *)qrCodeData.payload);
+        lcdScroll((const char *)qrCodeData.payload);
       }
       else
       {
@@ -53,10 +55,16 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println();
+  
+  Wire.begin(1, 2);
+  lcdInit();
+  lcdPrint("Starting...", 0, true);
 
   reader.setup();
   reader.beginOnCore(1);
   xTaskCreate(onQrCodeTask, "onQrCode", 4 * 1024, NULL, 4, NULL);
+  lcdPrint("Scan a QRCode", 0, true);
+  Serial.println("Setup done");
 }
 
 // Add this empty loop() function to satisfy the Arduino framework
