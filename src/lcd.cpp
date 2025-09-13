@@ -15,7 +15,6 @@ void lcdPrint(const char* message, int line, bool isClear) {
 }
 
 void lcdInit() {
-  Wire.begin(1, 2); // SDA = GPIO1, SCL = GPIO2 for ESP32-S3 WROOM
   lcd.init();
   lcd.backlight();
   lcd.clear();
@@ -51,4 +50,8 @@ void lcdScroll(const char* message) {
     // Wait for a moment before displaying the next part.
     delay(delayTime);
   }
+}
+
+void lcdClear() {
+  lcd.clear();
 }

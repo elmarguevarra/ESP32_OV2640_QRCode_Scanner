@@ -10,3 +10,4 @@ extern LiquidCrystal_I2C lcd;
 void lcdInit();
 void lcdPrint(const char* message, int line = 0, bool isClear = true);
 void lcdScroll(const char* message);
+void lcdClear();
