@@ -3,11 +3,18 @@
 #include "camera_pins.h"
 #include "esp_log.h"
 
+#ifndef WIFI_SSID
+  #define WIFI_SSID "default_ssid"
+#endif
+
+#ifndef WIFI_PASSWORD
+  #define WIFI_PASSWORD "default_password"
+#endif
+
 static const char* TAG = "camera_main";
 
-// WiFi credentials - CHANGE THESE TO YOUR NETWORK
-const char* ssid = "self_space_2.4";
-const char* password = "aybilab19";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
 // Function declarations
 void startCameraServer();
