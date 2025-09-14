@@ -97,7 +97,7 @@ void setup() {
   
   Wire.begin(1, 2);
   lcdInit();
-  lcdPrint("Starting...", 0, true);
+  lcdPrint("Starting", 0, true);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
@@ -125,7 +125,7 @@ void setup() {
   reader.beginOnCore(1); // Run on core 1 for performance
 
   // Create the FreeRTOS queue to pass URLs
-  urlQueue = xQueueCreate(10, 256); // A queue that can hold 10 URLs, each up to 256 chars
+  urlQueue = xQueueCreate(1, 256); // A queue that can hold 10 URLs, each up to 256 chars
 
   // Create the two tasks
   // The QR code task gets a higher priority to ensure it's responsive
