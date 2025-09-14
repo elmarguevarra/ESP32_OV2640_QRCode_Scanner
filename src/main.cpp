@@ -28,58 +28,56 @@ const CameraPins camPins = {
 // Instantiate the reader with the custom pinout
 ESP32QRCodeReader reader(camPins);
 
-bool qrCodeScanned = false;
-
 void onQrCodeTask(void *pvParameters) {
   struct QRCodeData qrCodeData;
+  // This loop will run until a valid QR code is found and processed
   while (true) {
-    // This is a blocking call that waits up to 100ms for a QR code
-    if (!qrCodeScanned) {
-      if (reader.receiveQrCode(&qrCodeData, 100)) {
-        Serial.println("Found QRCode");
-        if (qrCodeData.valid) {
-          lcdPrint("Processing...");
-          qrCodeScanned = true;
-          Serial.print("Payload: ");
-          Serial.println((const char *)qrCodeData.payload);
-          Serial.println("Sending HTTP GET request...");
-          // Perform the HTTP GET request
-          HTTPClient http;
-          http.begin((const char *)qrCodeData.payload);
-          
-          // Set a timeout to prevent the task from freezing indefinitely
-          http.setTimeout(10000); // 10-second timeout
-          
-          // Send the GET request and get the response code
-          int httpCode = http.GET();
-          // lcdPrint((const char*)httpCode);
-          
-          if (httpCode > 0) {
-            // HTTP header has been sent and server response header has been handled
-            String payload = http.getString();
-            Serial.print("HTTP Response Code: ");
-            Serial.println(httpCode);
-            Serial.print("HTTP Payload: ");
-            Serial.println(payload);
-            lcdPrint("ACCESS GRANTED");
-          } else {
-            // Failed to connect or server returned an error
-            Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-            lcdPrint("ACCESS DENIED");
-          }
-          
-          // Always end the session to free up resources
-          http.end();
+    if (reader.receiveQrCode(&qrCodeData, 100)) {
+      Serial.println("Found QRCode");
+      if (qrCodeData.valid) {
+        // A valid QR code was found, so we can exit the loop after processing
+        // and prevent the cam_hal errors
+        
+        Serial.print("Payload: ");
+        Serial.println((const char *)qrCodeData.payload);
+        lcdPrint("Processing...");
+
+        // Perform the HTTP GET request
+        HTTPClient http;
+        http.begin((const char *)qrCodeData.payload);
+        http.setTimeout(10000); // 10-second timeout
+        
+        Serial.println("Sending HTTP GET request...");
+        int httpCode = http.GET();
+        
+        if (httpCode > 0) {
+          String payload = http.getString();
+          Serial.print("HTTP Response Code: ");
+          Serial.println(httpCode);
+          Serial.print("HTTP Payload: ");
+          Serial.println(payload);
+          lcdPrint("ACCESS GRANTED");
         } else {
-          Serial.print("Invalid: ");
-          Serial.println((const char *)qrCodeData.payload);
-          lcdPrint("Scanning...");
+          Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+          lcdPrint("ACCESS DENIED");
         }
+        
+        http.end();
+        vTaskDelay(500 / portTICK_PERIOD_MS); // Wait 500ms
+        break; 
+
+      } else {
+        Serial.print("Invalid: ");
+        Serial.println((const char *)qrCodeData.payload);
+        lcdPrint("Scanning...");
       }
-    }
-    // Small delay to allow other FreeRTOS tasks to run
+    } 
     vTaskDelay(100 / portTICK_PERIOD_MS);
   }
+
+  // Once the while loop is broken, the task suspends itself
+  // to save CPU and power, as its job is done.
+  vTaskSuspend(NULL);
 }
 
 void setup() {
@@ -120,6 +118,5 @@ void setup() {
 }
 
 void loop() {
-  // Your program's main loop. Since you're using a separate FreeRTOS task,
-  // this function can be empty.
+  // Your program's main loop can be empty since FreeRTOS tasks handle all logic.
 }
