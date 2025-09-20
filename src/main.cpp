@@ -125,10 +125,11 @@ void httpTask(void *pvParameters) {
       // Enter cooldown
       scanCooldown = true;
       vTaskDelay(POST_PROCESS_COOLDOWN / portTICK_PERIOD_MS);
-      scanCooldown = false;
 
       // Flush old frames or wait till no QR detected
       flushCameraBuffer();
+
+      scanCooldown = false;
 
       // Unlock for next scan
       processingLock = false;
@@ -232,15 +233,16 @@ void setup() {
 
   // Camera
   reader.setup();
-  reader.beginOnCore(1);
+  reader.beginOnCore(0);   // 🔹 run camera/QR task on Core 0
 
   // Buzzer
   buzzerInit();
 
-  // Tasks
-  xTaskCreate(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL);
-  xTaskCreate(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL);
-  xTaskCreate(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL);
+  // Tasks pinned to Core 1 (application logic)
+  xTaskCreatePinnedToCore(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL, 1);
+  xTaskCreatePinnedToCore(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL, 1);
+  xTaskCreatePinnedToCore(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL, 1);
+
 
   // Prompt
   beepStartup();
@@ -256,12 +258,8 @@ void loop() {
 
 void flushCameraBuffer() {
   QRCodeData flushData;
-  unsigned long flushStart = millis();
-  while (millis() - flushStart < 1000) {  // flush duration 1 second
-    if (!reader.receiveQrCode(&flushData, QR_DETECT_TIMEOUT_MS)) {
-      // No QR detected, buffer cleared
-      break;
-    }
-    vTaskDelay(50 / portTICK_PERIOD_MS);  // brief delay to allow frame advance
+  while (reader.receiveQrCode(&flushData, 50)) {
+    // just discard frames until none left
+    vTaskDelay(50 / portTICK_PERIOD_MS); 
   }
 }
