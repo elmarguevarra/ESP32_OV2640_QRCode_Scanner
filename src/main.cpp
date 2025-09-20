@@ -9,15 +9,16 @@
 #include "buzzer.h"
 
 // ---------------------- CONFIG ----------------------
-#define QR_DETECT_TIMEOUT_MS    100
-#define QR_TASK_SLEEP_MS        100
-#define ENQUEUE_TIMEOUT_MS      500
+#define QR_DETECT_TIMEOUT_MS    100     // max wait for QR code from camera
+#define QR_TASK_SLEEP_MS        100     // main loop delay when idle
+#define ENQUEUE_TIMEOUT_MS      500     // max wait to enqueue URL
 #define QR_DEBOUNCE_MS          10000   // ignore same QR for 10s
 #define INVALID_DEBOUNCE_MS     3000    // ignore repeated invalid QR for 3s
 #define RESULT_DISPLAY_MS       2000    // show ACCESS GRANTED/DENIED
 #define POST_PROCESS_COOLDOWN   2000    // extra cooldown before re-enabling scan
-#define NO_QR_CLEAR_DELAY       500   // wait 500ms of no detection before clearing
-#define BUZZER_PIN 21
+#define NO_QR_CLEAR_DELAY       500     // wait 500ms of no detection before clearing
+#define FLUSH_BUFFER_DELAY_MS   100     // delay between flushing camera frames
+#define BUZZER_PIN 21                   // GPIO pin for buzzer
 
 // ---------------------- CAMERA CONFIG ----------------------
 const CameraPins camPins = {
@@ -260,6 +261,6 @@ void flushCameraBuffer() {
   QRCodeData flushData;
   while (reader.receiveQrCode(&flushData, 50)) {
     // just discard frames until none left
-    vTaskDelay(50 / portTICK_PERIOD_MS); 
+    vTaskDelay(FLUSH_BUFFER_DELAY_MS / portTICK_PERIOD_MS); 
   }
 }
