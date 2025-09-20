@@ -1,41 +1,59 @@
 #include <esp32-hal-ledc.h>
 #include <esp32-hal.h>
 
+#define BUZZER_PIN     21          // Set your buzzer GPIO pin here
+#define BUZZER_CHANNEL 0           // LEDC channel
+#define BUZZER_FREQ    2000        // Default freq for LEDC timer (not tone freq)
+#define BUZZER_RES     8           // PWM resolution (8 bits)
+#define TONE_DEFAULT_DELAY 80      // Recommended default tone duration in ms
+
+// Initialize buzzer PWM channel, attach pin - call this once in setup()
+void buzzerInit() {
+  ledcSetup(BUZZER_CHANNEL, BUZZER_FREQ, BUZZER_RES);
+  ledcAttachPin(BUZZER_PIN, BUZZER_CHANNEL);
+  ledcWriteTone(BUZZER_CHANNEL, 0);  // start silent
+}
+
+// Helper to play a single tone, frequency (Hz) and duration (ms)
+void playTone(uint32_t frequency, uint32_t duration_ms) {
+  if (frequency == 0 || duration_ms == 0) return;
+  ledcWriteTone(BUZZER_CHANNEL, frequency);
+  vTaskDelay(duration_ms / portTICK_PERIOD_MS);
+  ledcWriteTone(BUZZER_CHANNEL, 0);
+  vTaskDelay(20 / portTICK_PERIOD_MS); // small gap to separate tones
+}
+
+// Startup sound sequence
 void beepStartup() {
-  int tones[3] = {800, 1200, 1600};
+  int tones[] = {800, 1200, 1600};
   for (int i = 0; i < 3; i++) {
-    ledcWriteTone(0, tones[i]);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    playTone(tones[i], TONE_DEFAULT_DELAY);
   }
-  ledcWriteTone(0, 0);
 }
 
 void beepSuccess() {
-  // Two-tone ascending success beep
-  ledcWriteTone(0, 1800);
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  ledcWriteTone(0, 2200);
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  ledcWriteTone(0, 0); // stop
+  playTone(1400, 150);  // warm mid-frequency tone for 150 ms
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+  playTone(1700, 100);  // slightly higher tone for 100 ms
 }
 
-void beepDenied() {
-  // Low buzz with a short higher tone at the end
-  ledcWriteTone(0, 350);
-  vTaskDelay(300 / portTICK_PERIOD_MS);
-  ledcWriteTone(0, 400);
-  vTaskDelay(150 / portTICK_PERIOD_MS);
-  ledcWriteTone(0, 0); // stop
+
+// Denied beep: low buzz repeated twice with emphasis notes
+void beepFail() {
+  for (int i = 0; i < 2; i++) {
+    playTone(350, 250);
+    playTone(400, 150);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
 }
 
-void beepScanned() {
-  ledcWriteTone(0, 1000);  // 1kHz tone
-  delay(100);              // 100 ms
-  ledcWriteTone(0, 0);     // stop
+// Scanned beep: quick two-tone confirmation
+void beepProcess() {
+  playTone(1000, 60);
+  playTone(1200, 60);
 }
 
+// Detect beep: subtle short tone
 void beepDetect() {
-  ledcWriteTone(0, 750);   // 600 Hz low-mid tone
-  vTaskDelay(40 / portTICK_PERIOD_MS);
-  ledcWriteTone(0, 0);
+  playTone(750, 40);
 }

@@ -105,7 +105,7 @@ void httpTask(void *pvParameters) {
       } else {
         Serial.printf("HTTP failed: %s\n", http.errorToString(httpCode).c_str());
         strcpy(msg.text, "ACCESS DENIED");
-        beepDenied();
+        beepFail();
       }
       msg.line = 1;
       msg.clearFirst = true;
@@ -151,7 +151,7 @@ void qrCodeTask(void *pvParameters) {
     
         // ---------- Debounce check (valid + invalid) ----------
         if (qrCodeData.valid) {
-          beepScanned();
+          beepProcess();
           const char *payload = (const char *)qrCodeData.payload;
 
           if (strcmp(payload, lastPayload) == 0 && (now - lastDetectMs < QR_DEBOUNCE_MS)) {
@@ -235,8 +235,7 @@ void setup() {
   reader.beginOnCore(1);
 
   // Buzzer
-  ledcAttachPin(BUZZER_PIN, 0);   // channel 0
-  ledcWriteTone(0, 0);            // start silent
+  buzzerInit();
 
   // Tasks
   xTaskCreate(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL);

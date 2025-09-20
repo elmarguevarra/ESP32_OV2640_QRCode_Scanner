@@ -1,5 +1,6 @@
+void buzzerInit();
 void beepStartup();
 void beepSuccess();
-void beepDenied();
-void beepScanned();
+void beepFail();
+void beepProcess();
 void beepDetect();
