@@ -1,16 +1,31 @@
 #include <esp32-hal-ledc.h>
 #include <esp32-hal.h>
 
+void beepStartup() {
+  int tones[3] = {800, 1200, 1600};
+  for (int i = 0; i < 3; i++) {
+    ledcWriteTone(0, tones[i]);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+  ledcWriteTone(0, 0);
+}
+
 void beepSuccess() {
-  ledcWriteTone(0, 2000);  // 2kHz tone
-  vTaskDelay(200 / portTICK_PERIOD_MS);
-  ledcWriteTone(0, 0);     // stop
+  // Two-tone ascending success beep
+  ledcWriteTone(0, 1800);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  ledcWriteTone(0, 2200);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  ledcWriteTone(0, 0); // stop
 }
 
 void beepDenied() {
-  ledcWriteTone(0, 400);   // 400Hz low buzz
-  vTaskDelay(500 / portTICK_PERIOD_MS);
-  ledcWriteTone(0, 0);     // stop
+  // Low buzz with a short higher tone at the end
+  ledcWriteTone(0, 350);
+  vTaskDelay(300 / portTICK_PERIOD_MS);
+  ledcWriteTone(0, 400);
+  vTaskDelay(150 / portTICK_PERIOD_MS);
+  ledcWriteTone(0, 0); // stop
 }
 
 void beepScanned() {
@@ -20,7 +35,7 @@ void beepScanned() {
 }
 
 void beepDetect() {
-  ledcWriteTone(0, 600);   // 600 Hz low-mid tone
-  vTaskDelay(100 / portTICK_PERIOD_MS);
+  ledcWriteTone(0, 750);   // 600 Hz low-mid tone
+  vTaskDelay(40 / portTICK_PERIOD_MS);
   ledcWriteTone(0, 0);
 }

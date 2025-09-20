@@ -12,7 +12,7 @@
 #define QR_DETECT_TIMEOUT_MS    100
 #define QR_TASK_SLEEP_MS        100
 #define ENQUEUE_TIMEOUT_MS      500
-#define QR_DEBOUNCE_MS          10000   // ignore same QR for 5s
+#define QR_DEBOUNCE_MS          10000   // ignore same QR for 10s
 #define INVALID_DEBOUNCE_MS     3000    // ignore repeated invalid QR for 3s
 #define RESULT_DISPLAY_MS       2000    // show ACCESS GRANTED/DENIED
 #define POST_PROCESS_COOLDOWN   2000    // extra cooldown before re-enabling scan
@@ -67,6 +67,9 @@ struct UrlMessage {
   char url[256];
 };
 
+// ---------------------- FUNCTIONS ----------------------
+void flushCameraBuffer();
+
 // ---------------------- LCD TASK ----------------------
 void lcdTask(void *pvParameters) {
   LcdMessage msg;
@@ -113,6 +116,7 @@ void httpTask(void *pvParameters) {
       vTaskDelay(RESULT_DISPLAY_MS / portTICK_PERIOD_MS);
 
       // Prompt
+      beepStartup();
       strcpy(msg.text, "[Scan QRCode]");
       msg.line = 0;
       msg.clearFirst = true;
@@ -122,6 +126,9 @@ void httpTask(void *pvParameters) {
       scanCooldown = true;
       vTaskDelay(POST_PROCESS_COOLDOWN / portTICK_PERIOD_MS);
       scanCooldown = false;
+
+      // Flush old frames or wait till no QR detected
+      flushCameraBuffer();
 
       // Unlock for next scan
       processingLock = false;
@@ -237,6 +244,7 @@ void setup() {
   xTaskCreate(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL);
 
   // Prompt
+  beepStartup();
   LcdMessage ready = {"[Scan QRCode]", 0, true};
   xQueueSend(lcdQueue, &ready, 0);
 
@@ -247,3 +255,14 @@ void loop() {
   // Nothing here, tasks do the work
 }
 
+void flushCameraBuffer() {
+  QRCodeData flushData;
+  unsigned long flushStart = millis();
+  while (millis() - flushStart < 1000) {  // flush duration 1 second
+    if (!reader.receiveQrCode(&flushData, QR_DETECT_TIMEOUT_MS)) {
+      // No QR detected, buffer cleared
+      break;
+    }
+    vTaskDelay(50 / portTICK_PERIOD_MS);  // brief delay to allow frame advance
+  }
+}

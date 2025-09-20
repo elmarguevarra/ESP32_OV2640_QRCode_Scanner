@@ -1,3 +1,4 @@
+void beepStartup();
 void beepSuccess();
 void beepDenied();
 void beepScanned();
