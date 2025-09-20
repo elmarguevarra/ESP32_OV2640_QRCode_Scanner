@@ -9,5 +9,5 @@ extern LiquidCrystal_I2C lcd;
 // Function declarations with optional parameters
 void lcdInit();
 void lcdPrint(const char* message, int line = 0, bool isClear = true);
-void lcdScroll(const char* message);
 void lcdClear();
+void lcdClearLine(int line);
