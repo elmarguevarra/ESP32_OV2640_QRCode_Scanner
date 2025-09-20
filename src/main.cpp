@@ -15,6 +15,7 @@
 #define INVALID_DEBOUNCE_MS     3000    // ignore repeated invalid QR for 3s
 #define RESULT_DISPLAY_MS       2000    // show ACCESS GRANTED/DENIED
 #define POST_PROCESS_COOLDOWN   2000    // extra cooldown before re-enabling scan
+#define NO_QR_CLEAR_DELAY       500   // wait 500ms of no detection before clearing
 
 // ---------------------- CAMERA CONFIG ----------------------
 const CameraPins camPins = {
@@ -51,6 +52,7 @@ volatile bool scanCooldown   = false;  // true after HTTP result, before new sca
 char lastPayload[256] = {0};
 unsigned long lastDetectMs = 0;
 unsigned long lastInvalidMs = 0;  
+unsigned long lastSeenQrMs = 0;
 
 // ---------------------- MESSAGE STRUCTS ----------------------
 struct LcdMessage {
@@ -82,7 +84,7 @@ void httpTask(void *pvParameters) {
       Serial.printf("HTTP: processing URL -> %s\n", urlMsg.url);
 
       // LCD feedback
-      LcdMessage msg = {"Processing...", 1, true};
+      LcdMessage msg = {"processing...", 1, false};
       xQueueSend(lcdQueue, &msg, 0);
 
       HTTPClient http;
@@ -107,7 +109,7 @@ void httpTask(void *pvParameters) {
       vTaskDelay(RESULT_DISPLAY_MS / portTICK_PERIOD_MS);
 
       // Prompt
-      strcpy(msg.text, "[Scan a QRCode]");
+      strcpy(msg.text, "[Scan QRCode]");
       msg.line = 0;
       msg.clearFirst = true;
       xQueueSend(lcdQueue, &msg, 0);
@@ -173,12 +175,15 @@ void qrCodeTask(void *pvParameters) {
         }
       } else {
         // -------- No QR detected → clear LCD line --------
-        LcdMessage lm = {"                    ", 1, false};  // clear line 1
-        xQueueSend(lcdQueue, &lm, 0);
+        unsigned long now = millis();
+        if (now - lastSeenQrMs > NO_QR_CLEAR_DELAY) {
+          LcdMessage lm = {"                    ", 1, false};  // clear line
+          xQueueSend(lcdQueue, &lm, 0);
+        }
       }
     }
     vTaskDelay(QR_TASK_SLEEP_MS / portTICK_PERIOD_MS);
-  }
+  } 
 }
 
 
@@ -223,7 +228,7 @@ void setup() {
   xTaskCreate(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL);
 
   // Prompt
-  LcdMessage ready = {"[Scan a QRCode]", 0, true};
+  LcdMessage ready = {"[Scan QRCode]", 0, true};
   xQueueSend(lcdQueue, &ready, 0);
 
   Serial.println("Setup done.");
