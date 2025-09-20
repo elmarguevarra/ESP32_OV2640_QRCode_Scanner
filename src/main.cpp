@@ -12,6 +12,7 @@
 #define QR_TASK_SLEEP_MS        100
 #define ENQUEUE_TIMEOUT_MS      500
 #define QR_DEBOUNCE_MS          10000   // ignore same QR for 5s
+#define INVALID_DEBOUNCE_MS     3000    // ignore repeated invalid QR for 3s
 #define RESULT_DISPLAY_MS       2000    // show ACCESS GRANTED/DENIED
 #define POST_PROCESS_COOLDOWN   2000    // extra cooldown before re-enabling scan
 
@@ -49,6 +50,7 @@ volatile bool scanCooldown   = false;  // true after HTTP result, before new sca
 // Payload tracking
 char lastPayload[256] = {0};
 unsigned long lastDetectMs = 0;
+unsigned long lastInvalidMs = 0;  
 
 // ---------------------- MESSAGE STRUCTS ----------------------
 struct LcdMessage {
@@ -125,46 +127,60 @@ void httpTask(void *pvParameters) {
 // ---------------------- QR TASK ----------------------
 void qrCodeTask(void *pvParameters) {
   QRCodeData qrCodeData;
-
   while (true) {
+
     if (!processingLock && !scanCooldown) {
-      LcdMessage lm = {"                    ", 1, false};
-      xQueueSend(lcdQueue, &lm, 0);
       if (reader.receiveQrCode(&qrCodeData, QR_DETECT_TIMEOUT_MS)) {
+        LcdMessage lm = {"scanning...", 1, false};
+        xQueueSend(lcdQueue, &lm, 0);
+
+        unsigned long now = millis();
+    
+        // ---------- Debounce check (valid + invalid) ----------
         if (qrCodeData.valid) {
           const char *payload = (const char *)qrCodeData.payload;
-          unsigned long now = millis();
 
-          // Debounce check
           if (strcmp(payload, lastPayload) == 0 && (now - lastDetectMs < QR_DEBOUNCE_MS)) {
-            Serial.println("QR: duplicate ignored (debounce).");
-          } else {
-            // Accept scan
-            UrlMessage urlMsg;
-            strncpy(urlMsg.url, payload, sizeof(urlMsg.url) - 1);
-            urlMsg.url[sizeof(urlMsg.url) - 1] = '\0';
+            Serial.println("QR: duplicate valid QR ignored (debounce).");
+            continue;  // skip to next loop
+          }
+        } else {
+          if (now - lastInvalidMs < INVALID_DEBOUNCE_MS) {
+            Serial.println("QR: duplicate invalid QR ignored (debounce).");
+            continue;  // skip to next loop
+          }
+        }
+        
+        // ---------- Handle QR after debounce ----------
+        if (qrCodeData.valid) {
+          const char *payload = (const char *)qrCodeData.payload;
 
-            if (xQueueSend(urlQueue, &urlMsg, ENQUEUE_TIMEOUT_MS / portTICK_PERIOD_MS) == pdPASS) {
-              processingLock = true;  // lock until HTTP finishes
-              strncpy(lastPayload, payload, sizeof(lastPayload) - 1);
-              lastPayload[sizeof(lastPayload) - 1] = '\0';
-              lastDetectMs = now;
+          UrlMessage urlMsg;
+          strncpy(urlMsg.url, payload, sizeof(urlMsg.url) - 1);
+          urlMsg.url[sizeof(urlMsg.url) - 1] = '\0';
 
-              Serial.printf("QR: accepted -> %s\n", payload);
+          if (xQueueSend(urlQueue, &urlMsg, ENQUEUE_TIMEOUT_MS / portTICK_PERIOD_MS) == pdPASS) {
+            processingLock = true;  // lock until HTTP finishes
+            strncpy(lastPayload, payload, sizeof(lastPayload) - 1);
+            lastPayload[sizeof(lastPayload) - 1] = '\0';
+            lastDetectMs = now;
 
-            }
+            Serial.printf("QR: accepted -> %s\n", payload);
           }
         } else {
           Serial.println("QR: invalid QR.");
-          
-          LcdMessage lm = {"scanning...", 1, false};
-          xQueueSend(lcdQueue, &lm, 0);
+          lastInvalidMs = now;  // update invalid debounce
         }
+      } else {
+        // -------- No QR detected → clear LCD line --------
+        LcdMessage lm = {"                    ", 1, false};  // clear line 1
+        xQueueSend(lcdQueue, &lm, 0);
       }
     }
     vTaskDelay(QR_TASK_SLEEP_MS / portTICK_PERIOD_MS);
   }
 }
+
 
 // ---------------------- SETUP ----------------------
 void setup() {
