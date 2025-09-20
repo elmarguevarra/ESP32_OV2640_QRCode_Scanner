@@ -3,13 +3,13 @@
 
 void beepSuccess() {
   ledcWriteTone(0, 2000);  // 2kHz tone
-  delay(200);              // 200 ms
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   ledcWriteTone(0, 0);     // stop
 }
 
 void beepDenied() {
   ledcWriteTone(0, 400);   // 400Hz low buzz
-  delay(500);              // 500 ms
+  vTaskDelay(500 / portTICK_PERIOD_MS);
   ledcWriteTone(0, 0);     // stop
 }
 
@@ -21,6 +21,6 @@ void beepScanned() {
 
 void beepDetect() {
   ledcWriteTone(0, 600);   // 600 Hz low-mid tone
-  delay(150);              // short chirp
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   ledcWriteTone(0, 0);
 }

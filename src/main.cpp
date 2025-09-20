@@ -137,7 +137,7 @@ void qrCodeTask(void *pvParameters) {
     if (!processingLock && !scanCooldown) {
       if (reader.receiveQrCode(&qrCodeData, QR_DETECT_TIMEOUT_MS)) {
         unsigned long now = millis();
-
+        lastSeenQrMs = now; 
         LcdMessage lm = {"scanning...", 1, false};
         xQueueSend(lcdQueue, &lm, 0);
         beepDetect();
@@ -160,10 +160,6 @@ void qrCodeTask(void *pvParameters) {
         
         // ---------- Handle QR after debounce ----------
         if (qrCodeData.valid) {
-          reader.end();          // stop camera/reader
-          vTaskDelay(50 / portTICK_PERIOD_MS);
-          reader.beginOnCore(1); // restart
-
           const char *payload = (const char *)qrCodeData.payload;
 
           UrlMessage urlMsg;
