@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include "buzzer.h"
 
 // ---------------------- CONFIG ----------------------
 #define QR_DETECT_TIMEOUT_MS    100
@@ -16,6 +17,7 @@
 #define RESULT_DISPLAY_MS       2000    // show ACCESS GRANTED/DENIED
 #define POST_PROCESS_COOLDOWN   2000    // extra cooldown before re-enabling scan
 #define NO_QR_CLEAR_DELAY       500   // wait 500ms of no detection before clearing
+#define BUZZER_PIN 21
 
 // ---------------------- CAMERA CONFIG ----------------------
 const CameraPins camPins = {
@@ -96,9 +98,11 @@ void httpTask(void *pvParameters) {
         String payload = http.getString();
         Serial.printf("HTTP %d, payload: %s\n", httpCode, payload.c_str());
         strcpy(msg.text, "ACCESS GRANTED");
+        beepSuccess();
       } else {
         Serial.printf("HTTP failed: %s\n", http.errorToString(httpCode).c_str());
         strcpy(msg.text, "ACCESS DENIED");
+        beepDenied();
       }
       msg.line = 1;
       msg.clearFirst = true;
@@ -130,31 +134,36 @@ void httpTask(void *pvParameters) {
 void qrCodeTask(void *pvParameters) {
   QRCodeData qrCodeData;
   while (true) {
-
     if (!processingLock && !scanCooldown) {
       if (reader.receiveQrCode(&qrCodeData, QR_DETECT_TIMEOUT_MS)) {
+        unsigned long now = millis();
+
         LcdMessage lm = {"scanning...", 1, false};
         xQueueSend(lcdQueue, &lm, 0);
-
-        unsigned long now = millis();
+        beepDetect();
     
         // ---------- Debounce check (valid + invalid) ----------
         if (qrCodeData.valid) {
+          beepScanned();
           const char *payload = (const char *)qrCodeData.payload;
 
           if (strcmp(payload, lastPayload) == 0 && (now - lastDetectMs < QR_DEBOUNCE_MS)) {
             Serial.println("QR: duplicate valid QR ignored (debounce).");
-            continue;  // skip to next loop
+            continue;
           }
         } else {
           if (now - lastInvalidMs < INVALID_DEBOUNCE_MS) {
             Serial.println("QR: duplicate invalid QR ignored (debounce).");
-            continue;  // skip to next loop
+            continue;
           }
         }
         
         // ---------- Handle QR after debounce ----------
         if (qrCodeData.valid) {
+          reader.end();          // stop camera/reader
+          vTaskDelay(50 / portTICK_PERIOD_MS);
+          reader.beginOnCore(1); // restart
+
           const char *payload = (const char *)qrCodeData.payload;
 
           UrlMessage urlMsg;
@@ -171,7 +180,7 @@ void qrCodeTask(void *pvParameters) {
           }
         } else {
           Serial.println("QR: invalid QR.");
-          lastInvalidMs = now;  // update invalid debounce
+          lastInvalidMs = now;
         }
       } else {
         // -------- No QR detected → clear LCD line --------
@@ -222,6 +231,10 @@ void setup() {
   reader.setup();
   reader.beginOnCore(1);
 
+  // Buzzer
+  ledcAttachPin(BUZZER_PIN, 0);   // channel 0
+  ledcWriteTone(0, 0);            // start silent
+
   // Tasks
   xTaskCreate(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL);
   xTaskCreate(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL);
@@ -237,3 +250,4 @@ void setup() {
 void loop() {
   // Nothing here, tasks do the work
 }
+
