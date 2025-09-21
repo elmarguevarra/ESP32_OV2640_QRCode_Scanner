@@ -81,7 +81,9 @@ void shutdownTask(void *pvParameters) {
     while (true) {
         unsigned long now = millis();
         unsigned long elapsedTime = now - lastSeenQrMs;
-        Serial.printf("Elapsed time since last QR: %lu ms\n", elapsedTime);
+        unsigned long remainingTime = SHUTDOWN_AFTER_MS - elapsedTime;
+        unsigned long remainingSeconds = remainingTime / 1000;
+        Serial.printf("Time to shutdown: %lu seconds\n", remainingSeconds);
 
         if (elapsedTime > SHUTDOWN_AFTER_MS) {
             Serial.println("Shutdown: time expired. Entering deep sleep.");
