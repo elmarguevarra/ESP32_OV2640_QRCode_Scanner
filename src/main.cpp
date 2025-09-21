@@ -7,6 +7,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include "buzzer.h"
+#include <esp_sleep.h> 
 
 // ---------------------- CONFIG ----------------------
 #define QR_DETECT_TIMEOUT_MS    100     // max wait for QR code from camera
@@ -18,7 +19,9 @@
 #define POST_PROCESS_COOLDOWN   2000    // extra cooldown before re-enabling scan
 #define NO_QR_CLEAR_DELAY       500     // wait 500ms of no detection before clearing
 #define FLUSH_BUFFER_DELAY_MS   100     // delay between flushing camera frames
-#define BUZZER_PIN 21                   // GPIO pin for buzzer
+#define BUZZER_PIN              21      // GPIO pin for buzzer
+#define SHUTDOWN_AFTER_MS       10000   // 10 minutes in milliseconds
+#define LCD_QUEUE_TIMEOUT_MS    100
 
 // ---------------------- CAMERA CONFIG ----------------------
 const CameraPins camPins = {
@@ -71,13 +74,49 @@ struct UrlMessage {
 // ---------------------- FUNCTIONS ----------------------
 void flushCameraBuffer();
 
+// ---------------------- SHUTDOWN TASK ----------------------
+void shutdownTask(void *pvParameters) {
+    unsigned long startTime = millis();
+    
+    while (true) {
+        if (millis() - startTime > SHUTDOWN_AFTER_MS) {
+            Serial.println("Shutdown: time expired. Entering deep sleep.");
+
+            LcdMessage shutdownMsg = {"SHUTTING DOWN!", 0, true};
+            xQueueSend(lcdQueue, &shutdownMsg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
+
+            // 3. Wait for a moment so the user can see the message
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+
+            LcdMessage offMsg = {"", 0, true};
+            xQueueSend(lcdQueue, &offMsg, 0);
+            beepShutdown();
+
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            
+            // Go into deep sleep
+            esp_deep_sleep_start();
+        }
+        
+        // This task doesn't need to run often, so sleep for a while
+        vTaskDelay(1000 / portTICK_PERIOD_MS); 
+    }
+}
+
 // ---------------------- LCD TASK ----------------------
 void lcdTask(void *pvParameters) {
   LcdMessage msg;
   while (true) {
     if (xQueueReceive(lcdQueue, &msg, portMAX_DELAY) == pdPASS) {
-      if (msg.clearFirst) lcdClear();
-      lcdPrint(msg.text, msg.line, false);
+      if (strlen(msg.text) == 0) {
+        // This is our special "turn off" message
+        lcd.noDisplay();
+        lcd.noBacklight();
+        Serial.println("LCD: Turned off.");
+      } else {
+        if (msg.clearFirst) lcdClear();
+        lcdPrint(msg.text, msg.line, false);
+      }
     }
   }
 }
@@ -91,7 +130,7 @@ void httpTask(void *pvParameters) {
 
       // LCD feedback
       LcdMessage msg = {"processing...", 1, false};
-      xQueueSend(lcdQueue, &msg, 0);
+      xQueueSend(lcdQueue, &msg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
 
       HTTPClient http;
       http.begin(urlMsg.url);
@@ -110,7 +149,7 @@ void httpTask(void *pvParameters) {
       }
       msg.line = 1;
       msg.clearFirst = true;
-      xQueueSend(lcdQueue, &msg, 0);
+      xQueueSend(lcdQueue, &msg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
       http.end();
 
       // Result visible
@@ -121,7 +160,7 @@ void httpTask(void *pvParameters) {
       strcpy(msg.text, "[Scan QRCode]");
       msg.line = 0;
       msg.clearFirst = true;
-      xQueueSend(lcdQueue, &msg, 0);
+      xQueueSend(lcdQueue, &msg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
 
       // Enter cooldown
       scanCooldown = true;
@@ -148,7 +187,7 @@ void qrCodeTask(void *pvParameters) {
         unsigned long now = millis();
         lastSeenQrMs = now; 
         LcdMessage lm = {"scanning...", 1, false};
-        xQueueSend(lcdQueue, &lm, 0);
+        xQueueSend(lcdQueue, &lm, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
         beepDetect();
     
         // ---------- Debounce check (valid + invalid) ----------
@@ -240,6 +279,7 @@ void setup() {
   buzzerInit();
 
   // Tasks pinned to Core 1 (application logic)
+  xTaskCreatePinnedToCore(shutdownTask, "Shutdown_Task", 2048, NULL, 5, NULL, 1);
   xTaskCreatePinnedToCore(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL, 1);
   xTaskCreatePinnedToCore(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL, 1);
   xTaskCreatePinnedToCore(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL, 1);

@@ -31,6 +31,12 @@ void beepStartup() {
   }
 }
 
+void beepShutdown() {
+  playTone(800, 100);
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+  playTone(600, 100);
+}
+
 void beepSuccess() {
   playTone(1400, 150);  // warm mid-frequency tone for 150 ms
   vTaskDelay(50 / portTICK_PERIOD_MS);
