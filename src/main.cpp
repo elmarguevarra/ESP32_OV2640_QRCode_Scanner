@@ -20,8 +20,9 @@
 #define NO_QR_CLEAR_DELAY       500     // wait 500ms of no detection before clearing
 #define FLUSH_BUFFER_DELAY_MS   100     // delay between flushing camera frames
 #define BUZZER_PIN              21      // GPIO pin for buzzer
-#define SHUTDOWN_AFTER_MS       10000   // 10 minutes in milliseconds
+#define SHUTDOWN_AFTER_MS       60000   // 10 minutes in milliseconds
 #define LCD_QUEUE_TIMEOUT_MS    100
+#define RESTART_BUTTON_PIN      14      // Using GPIO 14 as our button input
 
 // ---------------------- CAMERA CONFIG ----------------------
 const CameraPins camPins = {
@@ -94,6 +95,10 @@ void shutdownTask(void *pvParameters) {
 
             vTaskDelay(100 / portTICK_PERIOD_MS);
             
+            // Place the wake-up code here before going to sleep
+            const gpio_num_t wakeUpPin = GPIO_NUM_14; // GPIO pin for button
+            esp_sleep_enable_ext1_wakeup(1ULL << wakeUpPin, ESP_EXT1_WAKEUP_ANY_HIGH);
+
             // Go into deep sleep
             esp_deep_sleep_start();
         }
@@ -226,7 +231,7 @@ void qrCodeTask(void *pvParameters) {
           Serial.println("QR: invalid QR.");
           lastInvalidMs = now;
         }
-      } else {
+      } else {  
         // -------- No QR detected → clear LCD line --------
         unsigned long now = millis();
         if (now - lastSeenQrMs > NO_QR_CLEAR_DELAY) {
@@ -237,6 +242,21 @@ void qrCodeTask(void *pvParameters) {
     }
     vTaskDelay(QR_TASK_SLEEP_MS / portTICK_PERIOD_MS);
   } 
+}
+
+// ---------------------- BUTTON RESTART TASK ----------------------
+void restartTask(void *pvParameters) {
+  while (true) {
+    int buttonState = digitalRead(RESTART_BUTTON_PIN);
+    // With a pull-down resistor, a press registers as HIGH
+    if (buttonState == HIGH) {
+      vTaskDelay(500 / portTICK_PERIOD_MS); // debounce delay
+      ESP.restart();
+    }
+
+    // Delay to prevent the task from consuming too much CPU
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
 }
 
 
@@ -278,7 +298,11 @@ void setup() {
   // Buzzer
   buzzerInit();
 
+  //Button
+  pinMode(RESTART_BUTTON_PIN, INPUT_PULLDOWN);
+
   // Tasks pinned to Core 1 (application logic)
+  xTaskCreatePinnedToCore(restartTask, "Button_Test_Task", 2048, NULL, 1, NULL, 1);
   xTaskCreatePinnedToCore(shutdownTask, "Shutdown_Task", 2048, NULL, 5, NULL, 1);
   xTaskCreatePinnedToCore(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL, 1);
   xTaskCreatePinnedToCore(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL, 1);
