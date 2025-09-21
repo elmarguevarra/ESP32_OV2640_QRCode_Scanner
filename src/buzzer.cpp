@@ -63,3 +63,7 @@ void beepProcess() {
 void beepDetect() {
   playTone(750, 40);
 }
+
+void beepWarning() {
+  playTone(500, 100);
+}
