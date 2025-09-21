@@ -20,8 +20,8 @@
 #define NO_QR_CLEAR_DELAY       500     // wait 500ms of no detection before clearing
 #define FLUSH_BUFFER_DELAY_MS   100     // delay between flushing camera frames
 #define BUZZER_PIN              21      // GPIO pin for buzzer
-#define SHUTDOWN_AFTER_MS       60000   // 10 minutes in milliseconds
-#define LCD_QUEUE_TIMEOUT_MS    100
+#define SHUTDOWN_AFTER_MS       60000   // 1 minute in milliseconds
+#define LCD_QUEUE_TIMEOUT_MS    100     // max wait to enqueue LCD message
 #define RESTART_BUTTON_PIN      14      // Using GPIO 14 as our button input
 
 // ---------------------- CAMERA CONFIG ----------------------
@@ -77,13 +77,16 @@ void flushCameraBuffer();
 
 // ---------------------- SHUTDOWN TASK ----------------------
 void shutdownTask(void *pvParameters) {
-    unsigned long startTime = millis();
     
     while (true) {
-        if (millis() - startTime > SHUTDOWN_AFTER_MS) {
+        unsigned long now = millis();
+        unsigned long elapsedTime = now - lastSeenQrMs;
+        Serial.printf("Elapsed time since last QR: %lu ms\n", elapsedTime);
+
+        if (elapsedTime > SHUTDOWN_AFTER_MS) {
             Serial.println("Shutdown: time expired. Entering deep sleep.");
 
-            LcdMessage shutdownMsg = {"SHUTTING DOWN!", 0, true};
+            LcdMessage shutdownMsg = {"Shutting down...", 0, true};
             xQueueSend(lcdQueue, &shutdownMsg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
 
             // 3. Wait for a moment so the user can see the message
