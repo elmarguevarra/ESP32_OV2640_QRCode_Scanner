@@ -23,6 +23,8 @@
 #define SHUTDOWN_AFTER_MS       60000   // shutdown after inactivity
 #define LCD_QUEUE_TIMEOUT_MS    100     // max wait to enqueue LCD message
 #define RESTART_BUTTON_PIN      14      // Using GPIO 14 as our button input
+#define ULTRASONIC_TRIG_PIN     40      // Using GPIO 40 as ultrasonic trigger
+#define ULTRASONIC_ECHO_PIN     41      // Using GPIO 41 as ultrasonic echo
 #define PROMPT_TEXT            " [Scan QR code]" // Prompt text
 
 // ---------------------- CAMERA CONFIG ----------------------
@@ -289,6 +291,41 @@ void restartTask(void *pvParameters) {
   }
 }
 
+// ---------------------- ULTRASONIC TASK ----------------------
+#define ULTRASONIC_TRIG_PIN 40
+#define ULTRASONIC_ECHO_PIN 41
+#define DISTANCE_THRESHOLD_CM 20   // restart if object < 20 cm
+
+void ultrasonicTask(void *pvParameters) {
+  pinMode(ULTRASONIC_TRIG_PIN, OUTPUT);
+  pinMode(ULTRASONIC_ECHO_PIN, INPUT);
+
+  while (true) {
+    // 1. Send trigger pulse
+    digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+    vTaskDelay(2 / portTICK_PERIOD_MS);
+    digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+
+    // 2. Measure echo pulse
+    long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, 30000); // timeout 30ms
+
+    // 3. Convert to distance
+    float distanceCm = duration * 0.034 / 2;
+
+    // 4. Check if something is near
+    if (duration > 0 && distanceCm < DISTANCE_THRESHOLD_CM) {
+      Serial.printf("Ultrasonic: %.2f cm -> restarting ESP\n", distanceCm);
+      vTaskDelay(500 / portTICK_PERIOD_MS); // small debounce delay
+      ESP.restart();
+    }
+
+    // 5. Run once per second
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
 
 // ---------------------- SETUP ----------------------
 void setup() {
@@ -332,6 +369,7 @@ void setup() {
   xTaskCreatePinnedToCore(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL, 1);
   xTaskCreatePinnedToCore(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL, 1);
   xTaskCreatePinnedToCore(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL, 1);
+  xTaskCreatePinnedToCore(ultrasonicTask, "Ultrasonic_Task", 4096, NULL, 2, NULL, 1);
 
   // Initialize last seen time
   lastSeenQrMs = millis();
