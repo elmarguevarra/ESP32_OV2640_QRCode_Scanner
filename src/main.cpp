@@ -85,7 +85,6 @@ void shutdownTask(void *pvParameters) {
         unsigned long remainingTime = SHUTDOWN_AFTER_MS - elapsedTime;
         unsigned long remainingSeconds = remainingTime / 1000;
         if(remainingSeconds <= 10) {
-          beepWarning();
           Serial.printf("Time to shutdown: %lu seconds\n", remainingSeconds);
         }
 
