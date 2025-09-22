@@ -38,28 +38,18 @@ void beepShutdown() {
 }
 
 void beepSuccess() {
-  playTone(1400, 150);  // warm mid-frequency tone for 150 ms
-  vTaskDelay(50 / portTICK_PERIOD_MS);
-  playTone(1700, 100);  // slightly higher tone for 100 ms
+  playTone(1500, 200);
 }
 
-
-// Denied beep: low buzz repeated twice with emphasis notes
 void beepFail() {
-  for (int i = 0; i < 2; i++) {
-    playTone(350, 250);
-    playTone(400, 150);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-  }
+  playTone(400, 300); 
 }
 
-// Scanned beep: quick two-tone confirmation
 void beepProcess() {
   playTone(1000, 60);
   playTone(1200, 60);
 }
 
-// Detect beep: subtle short tone
 void beepDetect() {
   playTone(750, 40);
 }

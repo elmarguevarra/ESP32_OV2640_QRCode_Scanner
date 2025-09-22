@@ -20,7 +20,7 @@
 #define NO_QR_CLEAR_DELAY       500     // wait 500ms of no detection before clearing
 #define FLUSH_BUFFER_DELAY_MS   100     // delay between flushing camera frames
 #define BUZZER_PIN              21      // GPIO pin for buzzer
-#define SHUTDOWN_AFTER_MS       30000   // shutdown after inactivity
+#define SHUTDOWN_AFTER_MS       60000   // shutdown after inactivity
 #define LCD_QUEUE_TIMEOUT_MS    100     // max wait to enqueue LCD message
 #define RESTART_BUTTON_PIN      14      // Using GPIO 14 as our button input
 #define PROMPT_TEXT            " [Scan QR code]" // Prompt text
@@ -149,20 +149,42 @@ void httpTask(void *pvParameters) {
       http.begin(urlMsg.url);
       http.setTimeout(10000);
 
+      bool isSuccess = false;
       int httpCode = http.GET();
-      if (httpCode > 0) {
+      if (httpCode == 200) {
         String payload = http.getString();
-        Serial.printf("HTTP %d, payload: %s\n", httpCode, payload.c_str());
+        if(payload != "") {
+          isSuccess = true;
+        } else {
+          Serial.println("HTTP 200: Empty payload");
+        }
+      }
+      else if (httpCode == 401) {
+        Serial.printf("HTTP %d: Unauthorized\n", httpCode);
+      } else if (httpCode == 403) {
+        Serial.printf("HTTP %d: Forbidden\n", httpCode);
+      } else if (httpCode == 404) {
+        Serial.printf("HTTP %d: Not Found\n", httpCode);
+      } else if (httpCode == 0) {
+        Serial.printf("HTTP failed: %s\n", http.errorToString(httpCode).c_str());
+      } else {
+        Serial.printf("HTTP %d: Unexpected response\n", httpCode);
+      }
+
+      if (isSuccess)
+      {
         strcpy(msg.text, "ACCESS GRANTED");
         beepSuccess();
-      } else {
-        Serial.printf("HTTP failed: %s\n", http.errorToString(httpCode).c_str());
+      }
+      else
+      {
         strcpy(msg.text, "ACCESS DENIED");
         beepFail();
       }
       msg.line = 1;
       msg.clearFirst = true;
-      xQueueSend(lcdQueue, &msg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
+      xQueueSend(lcdQueue, &msg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);      
+
       http.end();
 
       // Result visible
@@ -310,6 +332,9 @@ void setup() {
   xTaskCreatePinnedToCore(qrCodeTask, "QR_Task", 10 * 1024, NULL, 6, NULL, 1);
   xTaskCreatePinnedToCore(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL, 1);
   xTaskCreatePinnedToCore(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL, 1);
+
+  // Initialize last seen time
+  lastSeenQrMs = millis();
 
   Serial.println("Setup done.");
 
