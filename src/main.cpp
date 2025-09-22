@@ -23,6 +23,7 @@
 #define SHUTDOWN_AFTER_MS       30000   // shutdown after inactivity
 #define LCD_QUEUE_TIMEOUT_MS    100     // max wait to enqueue LCD message
 #define RESTART_BUTTON_PIN      14      // Using GPIO 14 as our button input
+#define PROMPT_TEXT            " [Scan QR code]" // Prompt text
 
 // ---------------------- CAMERA CONFIG ----------------------
 const CameraPins camPins = {
@@ -91,7 +92,7 @@ void shutdownTask(void *pvParameters) {
         if (elapsedTime > SHUTDOWN_AFTER_MS) {
             Serial.println("Shutdown: time expired. Entering deep sleep.");
 
-            LcdMessage shutdownMsg = {"Shutting down...", 0, true};
+            LcdMessage shutdownMsg = {"shutting down...", 0, true};
             xQueueSend(lcdQueue, &shutdownMsg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
 
             // 3. Wait for a moment so the user can see the message
@@ -183,7 +184,7 @@ void httpTask(void *pvParameters) {
 
       // Prompt
       beepStartup();
-      strcpy(msg.text, "[Scan QRCode]");
+      strcpy(msg.text, PROMPT_TEXT);
       msg.line = 0;
       msg.clearFirst = true;
       xQueueSend(lcdQueue, &msg, LCD_QUEUE_TIMEOUT_MS / portTICK_PERIOD_MS);
@@ -284,10 +285,6 @@ void setup() {
     while (true) { delay(1000); }
   }
 
-  // LCD boot
-  LcdMessage boot = {"Starting...", 0, true};
-  xQueueSend(lcdQueue, &boot, 0);
-
   // WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting WiFi");
@@ -295,9 +292,8 @@ void setup() {
     delay(500); Serial.print(".");
   }
   Serial.println("\nWiFi connected");
-  lcdClear();
-  lcd.setCursor(0, 0); lcd.print("WiFi Connected!");
-  lcd.setCursor(0, 1); lcd.print(WiFi.localIP());
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
 
   // Camera
   reader.setup();
@@ -316,13 +312,12 @@ void setup() {
   xTaskCreatePinnedToCore(httpTask, "HTTP_Task", 12 * 1024, NULL, 4, NULL, 1);
   xTaskCreatePinnedToCore(lcdTask, "LCD_Task", 6 * 1024, NULL, 3, NULL, 1);
 
+  Serial.println("Setup done.");
 
   // Prompt
   beepStartup();
-  LcdMessage ready = {"[Scan QRCode]", 0, true};
+  LcdMessage ready = {PROMPT_TEXT, 0, true};
   xQueueSend(lcdQueue, &ready, 0);
-
-  Serial.println("Setup done.");
 }
 
 void loop() {

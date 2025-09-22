@@ -19,9 +19,7 @@ void lcdInit() {
   lcd.backlight();
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("ESP32-S3 Camera");
-  lcd.setCursor(0, 1);
-  lcd.print("Initializing...");
+  lcd.print("initializing...");
 }
 
 void lcdClear() {
