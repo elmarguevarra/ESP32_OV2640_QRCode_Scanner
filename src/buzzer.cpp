@@ -23,13 +23,12 @@ void playTone(uint32_t frequency, uint32_t duration_ms) {
   vTaskDelay(20 / portTICK_PERIOD_MS); // small gap to separate tones
 }
 
-// Startup sound sequence
 void beepStartup() {
-  int tones[] = {800, 1200, 1600};
-  for (int i = 0; i < 3; i++) {
-    playTone(tones[i], TONE_DEFAULT_DELAY);
-  }
+  playTone(1000, 120);   // Mid tone
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+  playTone(2000, 200);   // Higher tone, feels fresh/modern
 }
+
 
 void beepShutdown() {
   playTone(800, 100);
