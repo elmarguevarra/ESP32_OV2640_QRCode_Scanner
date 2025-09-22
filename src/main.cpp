@@ -20,7 +20,7 @@
 #define NO_QR_CLEAR_DELAY       500     // wait 500ms of no detection before clearing
 #define FLUSH_BUFFER_DELAY_MS   100     // delay between flushing camera frames
 #define BUZZER_PIN              21      // GPIO pin for buzzer
-#define SHUTDOWN_AFTER_MS       60000   // shutdown after inactivity
+#define SHUTDOWN_AFTER_MS       300000   // shutdown after inactivity
 #define LCD_QUEUE_TIMEOUT_MS    100     // max wait to enqueue LCD message
 #define RESTART_BUTTON_PIN      14      // Using GPIO 14 as our button input
 #define PROMPT_TEXT            " [Scan QR code]" // Prompt text

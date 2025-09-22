@@ -38,12 +38,17 @@ void beepShutdown() {
 }
 
 void beepSuccess() {
-  playTone(1500, 200);
+  playTone(1000, 100);
+  playTone(1400, 100);
+  playTone(1800, 120);
 }
 
+
 void beepFail() {
-  playTone(400, 300); 
+  playTone(800, 200);
+  playTone(500, 300);
 }
+
 
 void beepProcess() {
   playTone(1000, 60);
